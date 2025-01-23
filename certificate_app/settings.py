@@ -150,10 +150,13 @@ EMAIL_HOST_PASSWORD = 'pajd bbet atzc ijhf'  # Use the generated password here
 
 
 
+
+# Additional directories to look for static files during development
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
+    os.path.join(BASE_DIR, 'static'),  # Ensure 'static' is where you store your static files
 ]
 
+# Directory for collecting static files during deployment
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 
