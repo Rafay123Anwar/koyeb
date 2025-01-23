@@ -30,3 +30,5 @@ reportlab==3.6.13
 PyPDF2==3.0.0
 fitz==0.0.1.dev2  # PyMuPDF
 whitenoise==6.7.0
+
+Python == 3.12.3
