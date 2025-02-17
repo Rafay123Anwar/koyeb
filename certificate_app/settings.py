@@ -87,13 +87,24 @@ WSGI_APPLICATION = 'certificate_app.wsgi.application'
 #     }
 # }
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',  # Use PostgreSQL database engine
+#         'NAME': 'postgres',                        # Database name
+#         'USER': 'postgres.lmhrtekbnzosmzyxcwth',                        # Username
+#         'PASSWORD': 'ncisgYrJL8rf1IQ2',            # Password
+#         'HOST': 'aws-0-ap-southeast-1.pooler.supabase.com',  # Host
+#         'PORT': '6543',                            # Port
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',  # Use PostgreSQL database engine
         'NAME': 'postgres',                        # Database name
-        'USER': 'postgres.lmhrtekbnzosmzyxcwth',                        # Username
-        'PASSWORD': 'ncisgYrJL8rf1IQ2',            # Password
-        'HOST': 'aws-0-ap-southeast-1.pooler.supabase.com',  # Host
+        'USER': 'postgres.bqhxsxhzdgaiqzbvhjxf',                        # Username
+        'PASSWORD': 'TgrK6hPlWtsNcmEB',            # Password
+        'HOST': 'aws-0-us-west-1.pooler.supabase.com',  # Host
         'PORT': '6543',                            # Port
     }
 }
