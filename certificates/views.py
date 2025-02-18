@@ -1,23 +1,15 @@
 
-
 from django.shortcuts import render, redirect
 from django.core.mail import EmailMessage
 from django.http import HttpResponse
 from .models import EmailNameData, Certificate, Coordinate
 from .forms import UploadEmailFileForm, UploadCertificateForm
-from reportlab.pdfgen import canvas
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from PyPDF2 import PdfReader, PdfWriter
-import io
-import csv
 import base64
-import fitz  # PyMuPDF
-import os
 from django.conf import settings
-import pandas as pd
 from django.db import transaction
 from concurrent.futures import ThreadPoolExecutor
+import fitz
+
 
 
 def get_session_id(request):
@@ -36,12 +28,21 @@ def upload_email_file(request):
             file = request.FILES['file']
             decoded_file = None
 
-            # Process the uploaded file based on its extension
             try:
+                # Handle CSV and Excel files (without pandas for lighter approach)
                 if file.name.endswith(('.xls', '.xlsx', '.xlsm')):
-                    decoded_file = pd.read_excel(file).to_csv(index=False).splitlines()
+                    from openpyxl import load_workbook
+                    wb = load_workbook(file)
+                    sheet = wb.active
+                    decoded_file = [
+                        (row[0].value, row[1].value) for row in sheet.iter_rows(min_row=2)
+                        if row[0].value and row[1].value  # Ensure both name and email are present
+                    ]
                 else:
-                    decoded_file = file.read().decode('utf-8').splitlines()
+                    decoded_file = [
+                        (line.decode('utf-8').split(',')[0], line.decode('utf-8').split(',')[1])
+                        for line in file.readlines() if line.decode('utf-8').split(',')[0] and line.decode('utf-8').split(',')[1]
+                    ]
 
                 # Pre-fetch existing emails for faster filtering
                 existing_emails = set(
@@ -51,8 +52,7 @@ def upload_email_file(request):
                 # Bulk insert email and name data
                 rows = [
                     EmailNameData(name=row[0], email=row[1], session_id=session_id)
-                    for row in csv.reader(decoded_file)
-                    if row[1] not in existing_emails
+                    for row in decoded_file if row[1] not in existing_emails and row[0]
                 ]
                 if rows:
                     with transaction.atomic():
@@ -66,6 +66,7 @@ def upload_email_file(request):
         form = UploadEmailFileForm()
 
     return render(request, 'upload_email_file.html', {'form': form})
+
 
 
 def upload_certificate(request):
@@ -87,13 +88,13 @@ def upload_certificate(request):
 
     return render(request, 'upload_certificate.html', {'form': form})
 
-
 def set_coordinates(request):
     session_id = get_session_id(request)
     certificate_image_data = None
     certificate_width, certificate_height = 1000, 1000  # Default dimensions
 
     try:
+        # Fetch the latest certificate for the session
         certificate = Certificate.objects.filter(session_id=session_id).latest('uploaded_at')
 
         # Convert PDF to an image for display
@@ -119,13 +120,14 @@ def set_coordinates(request):
             font_size = int(request.POST.get('fontSize'))
             font_color = request.POST.get('fontColor')
 
+            # Ensure that a valid certificate object is passed to the Coordinate
             with transaction.atomic():
                 Coordinate.objects.create(
                     x=x,
                     y=y,
                     font_size=font_size,
                     font_color=font_color,
-                    certificate=certificate,
+                    certificate=certificate,  # Assign the certificate object here
                     session_id=session_id
                 )
             return redirect('send_emails')
@@ -140,15 +142,62 @@ def set_coordinates(request):
     })
 
 
-def hex_to_rgb(hex_color):
-    """Convert hex color code to RGB."""
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
 
+def send_email_batch(emails_data, certificate_binary, coordinate):
+    for recipient in emails_data:
+        font_color_rgb = tuple(int(coordinate.font_color[i:i + 2], 16) for i in (1, 3, 5))  # Optimized color conversion
+        modified_pdf_data = add_name_to_certificate(
+            certificate_binary=certificate_binary,
+            name=recipient.name,
+            x=coordinate.x,
+            y=coordinate.y,
+            font_size=coordinate.font_size,
+            font_color=font_color_rgb
+        )
+
+        email = EmailMessage(
+            "🎉 Your Personalized Certificate is Ready! 🎓",
+            f"Hi {recipient.name},\n\nYour certificate is ready!",
+            'noreply@example.com',
+            [recipient.email]
+        )
+        email.attach('certificate.pdf', modified_pdf_data, 'application/pdf')
+        email.send()
+
+
+def send_emails(request):
+    session_id = get_session_id(request)
+
+    try:
+        certificate = Certificate.objects.filter(session_id=session_id).latest('uploaded_at')
+        coordinate = Coordinate.objects.filter(session_id=session_id).first()
+
+        if not coordinate:
+            return HttpResponse("Coordinates not found for this session.", status=404)
+
+        recipients = EmailNameData.objects.filter(session_id=session_id)
+
+        # Using ThreadPoolExecutor for parallel email sending
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            executor.submit(send_email_batch, recipients, certificate.file, coordinate)
+
+        return redirect('success')
+    except Exception as e:
+        print(f"Error sending emails: {e}")
+        return HttpResponse("An error occurred while sending emails.", status=500)
 
 def add_name_to_certificate(certificate_binary, name, x, y, font_size, font_color, font_name="MonteCarlo"):
     """Add a name to a certificate PDF at specified coordinates."""
     try:
+        from reportlab.pdfgen import canvas
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        from PyPDF2 import PdfReader, PdfWriter
+        import io
+        import os
+        from django.conf import settings
+
+        # Register font if not already registered
         font_path = os.path.join(settings.BASE_DIR, "static", "fonts", "MonteCarlo-Regular.ttf")
         pdfmetrics.registerFont(TTFont(font_name, font_path if os.path.exists(font_path) else "Helvetica"))
 
@@ -178,78 +227,6 @@ def add_name_to_certificate(certificate_binary, name, x, y, font_size, font_colo
     except Exception as e:
         print(f"Error adding name to certificate: {e}")
         raise
-
-
-# ThreadPoolExecutor for parallel email sending
-def send_email_batch(emails_data, certificate_binary, coordinate):
-    for recipient in emails_data:
-        font_color_rgb = hex_to_rgb(coordinate.font_color)
-        modified_pdf_data = add_name_to_certificate(
-            certificate_binary=certificate_binary,
-            name=recipient.name,
-            x=coordinate.x,
-            y=coordinate.y,
-            font_size=coordinate.font_size,
-            font_color=font_color_rgb
-        )
-
-        email = EmailMessage(
-            "🎉 Your Personalized Certificate is Ready! 🎓",
-            f"Hi {recipient.name},\n\nYour certificate is ready!",
-            'noreply@example.com',
-            [recipient.email]
-        )
-        email.attach('certificate.pdf', modified_pdf_data, 'application/pdf')
-        email.send()
-
-def send_emails(request):
-    session_id = get_session_id(request)
-
-    try:
-        # Check if emails have already been sent for this session
-        if EmailNameData.objects.filter(session_id=session_id, sent=True).exists():
-            return HttpResponse("Emails have already been sent for this session.", status=200)
-
-        certificate = Certificate.objects.filter(session_id=session_id).latest('uploaded_at')
-        coordinate = Coordinate.objects.filter(session_id=session_id).first()
-
-        if not coordinate:
-            return HttpResponse("Coordinates not found for this session.", status=404)
-
-        recipients = EmailNameData.objects.filter(session_id=session_id)
-
-        # Use ThreadPoolExecutor for parallel email sending
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            # Processing email sending in parallel
-            executor.submit(send_email_batch, recipients, certificate.file, coordinate)
-
-        return redirect('success')
-    except Exception as e:
-        print(f"Error sending emails: {e}")
-        return HttpResponse("An error occurred while sending emails.", status=500)
-
-
-# def send_emails(request):
-#     session_id = get_session_id(request)
-
-#     try:
-#         certificate = Certificate.objects.filter(session_id=session_id).latest('uploaded_at')
-#         coordinate = Coordinate.objects.filter(session_id=session_id).first()
-
-#         if not coordinate:
-#             return HttpResponse("Coordinates not found for this session.", status=404)
-
-#         recipients = EmailNameData.objects.filter(session_id=session_id)
-
-#         # Use ThreadPoolExecutor for parallel email sending
-#         with ThreadPoolExecutor(max_workers=10) as executor:
-#             # Processing email sending in parallel
-#             executor.submit(send_email_batch, recipients, certificate.file, coordinate)
-
-#         return redirect('success')
-#     except Exception as e:
-#         print(f"Error sending emails: {e}")
-#         return HttpResponse("An error occurred while sending emails.", status=500)
 
 
 def success_view(request):
