@@ -26,8 +26,8 @@ SECRET_KEY = 'django-insecure-#s88call)+nw8cy%@a7h$!1%%roe&#n@iu$8#jucs%i3gy_+3s
 DEBUG = True
 
 # ALLOWED_HOSTS = []
-ALLOWED_HOSTS = ['.vercel.app','localhost','127.0.0.1','.now.sh']
-# ALLOWED_HOSTS = ['*']
+# ALLOWED_HOSTS = ['.vercel.app','localhost','127.0.0.1','.now.sh']
+ALLOWED_HOSTS = ['*']
 
 
 MEDIA_URL = '/media/'
