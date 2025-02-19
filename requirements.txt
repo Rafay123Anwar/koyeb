@@ -42,3 +42,6 @@ reportlab==3.6.13
 PyPDF2==3.0.1
 PyMuPDF==1.22.3  # Replaces fitz
 whitenoise==6.7.0
+pandas
+openpyxl  # Needed for reading Excel files
+
