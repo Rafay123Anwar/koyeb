@@ -26,8 +26,8 @@ SECRET_KEY = 'django-insecure-#s88call)+nw8cy%@a7h$!1%%roe&#n@iu$8#jucs%i3gy_+3s
 DEBUG = True
 
 # ALLOWED_HOSTS = []
-# ALLOWED_HOSTS = ['.vercel.app','localhost','127.0.0.1','.now.sh']
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['.vercel.app','localhost','127.0.0.1','.now.sh']
+# ALLOWED_HOSTS = ['*']
 
 
 MEDIA_URL = '/media/'
@@ -53,6 +53,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
 ]
 
 ROOT_URLCONF = 'certificate_app.urls'
@@ -87,25 +88,14 @@ WSGI_APPLICATION = 'certificate_app.wsgi.application'
 #     }
 # }
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',  # Use PostgreSQL database engine
-#         'NAME': 'postgres',                        # Database name
-#         'USER': 'postgres.lmhrtekbnzosmzyxcwth',                        # Username
-#         'PASSWORD': 'ncisgYrJL8rf1IQ2',            # Password
-#         'HOST': 'aws-0-ap-southeast-1.pooler.supabase.com',  # Host
-#         'PORT': '6543',                            # Port
-#     }
-# }
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',  # Use PostgreSQL database engine
         'NAME': 'postgres',                        # Database name
-        'USER': 'postgres.bqhxsxhzdgaiqzbvhjxf',                        # Username
-        'PASSWORD': 'TgrK6hPlWtsNcmEB',            # Password
-        'HOST': 'aws-0-us-west-1.pooler.supabase.com',  # Host
-        'PORT': '6543',                            # Port
+        'USER': 'postgres.smnozkqfpomsbfdovhmp',                        # Username
+        'PASSWORD': 'Rafayanwerr',            # Password
+        'HOST': 'aws-0-ap-southeast-1.pooler.supabase.com',  # Host
+        'PORT': '5432',                            # Port
     }
 }
 
@@ -157,21 +147,16 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'rafayanwer786@gmail.com'
-EMAIL_HOST_PASSWORD = 'pajd bbet atzc ijhf'  # Use the generated password here
+EMAIL_HOST_PASSWORD = 'pajd bbet atzc ijhf'  # Replace this with the generated app password
 
 
 
-
-# Additional directories to look for static files during development
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),  # Ensure 'static' is where you store your static files
-]
-
-# Directory for collecting static files during deployment
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_URL = 'static/'
+STATICFILES_DIRS =[os.path.join(BASE_DIR,'static')]
+STATIC_ROOT = os.path.join(BASE_DIR,'staticfiles_build','static')
 
 
-# STATIC_URL = '/static/'
-# STATICFILES_DIRS = [
-#     os.path.join(BASE_DIR, "static"),
-# ]
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
